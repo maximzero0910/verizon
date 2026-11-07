@@ -183,6 +183,12 @@ class PublicationTests(unittest.TestCase):
         self.assertTrue(check_public_tree.prohibited("mods/horizon/src/main/java/net/minecraft/Client.java"))
         for path in ["tools/JfrSummary.java", "tests/java/JfrFixture.java"]:
             self.assertFalse(check_public_tree.prohibited(path), path)
+        for path in ["crates/java2horizon/bridge-java/dev/horizon/j2h/NativeBridge.java",
+                     "crates/java2horizon/test_mod/src/main/java/com/example/testmod/TestMod.java",
+                     "tools/j2h_compat/fixtures/good/GoodMod.java",
+                     "crates/java2horizon/test_resources/j2h-runtime.jar"]:
+            self.assertFalse(check_public_tree.prohibited(path), path)
+        self.assertTrue(check_public_tree.prohibited("crates/java2horizon/test_resources/untrusted-mod.jar"))
         for path in ["tools/Minecraft.java", "tests/java/Client.java", ".local/tools/JfrSummary.java"]:
             self.assertTrue(check_public_tree.prohibited(path), path)
 

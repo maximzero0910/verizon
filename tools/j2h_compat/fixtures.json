@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "minecraft_version": "26.3",
+  "fixtures": [
+    {"fixture_id":"brokenmod","version":"1.0.0","entrypoint":"fixture.broken.FailingMod","behavior":"stage brokenmod:leaked then throw; required dependency must skip"},
+    {"fixture_id":"goodmod","version":"1.0.0","entrypoint":"fixture.good.GoodMod","behavior":"independent block registration commits"},
+    {"fixture_id":"optionalmod","version":"1.0.0","entrypoint":"fixture.optional.OptionalMod","recommends":["brokenmod"],"behavior":"optional dependency does not block registration"},
+    {"fixture_id":"requiredmod","version":"1.0.0","entrypoint":"fixture.required.RequiredMod","depends":["brokenmod"],"behavior":"required dependency failure skips registration"},
+    {"fixture_id":"ruby","version":"1.0.0","entrypoint":"fixture.ruby.RubyMod","behavior":"register Ruby block and item"},
+    {"fixture_id":"jade_rule_probe","version":"1.0.0","entrypoint":"fixture.jade.JadeRuleProbe","depends":["jade"],"scenario":"feature_probe","expected_log_markers":["J2H_COMPAT_PROBE_ENTERED:jade_rule_probe","J2H_COMPAT_ASSERTION:jade_rule_registered:default=21"],"verifies_mod":"jade","verified_feature":"Java game-rule registry contains jade:max_position_deviation with default 21","behavior":"query the real Minecraft GAME_RULE registry after Jade initialization"},
+    {"fixture_id":"sodium_config_probe","version":"1.0.0","entrypoint":"fixture.sodium.SodiumConfigProbe","depends":["sodium"],"scenario":"feature_probe","prelaunch_files":[{"source":"sodium/sodium-options.json","destination":"config/sodium-options.json"}],"expected_log_markers":["J2H_COMPAT_PROBE_ENTERED:sodium_config_probe","J2H_COMPAT_ASSERTION:sodium_startup_override:hiddenFluidCulling=false","J2H_COMPAT_ASSERTION:sodium_config_roundtrip:restored=true"],"verifies_mod":"sodium","verified_feature":"Sodium client startup loads the isolated hiddenFluidCulling=false override; a config value persists across disk reload and is restored","behavior":"preseed Sodium's isolated config before launch, assert the client options contain the override, then round-trip and restore an option"},
+    {"fixture_id":"architectury_payload_accessor_probe","version":"1.0.0","entrypoint":"fixture.architectury.AttachmentAccessorProbe","depends":["architectury"],"scenario":"feature_probe","expected_log_markers":["J2H_COMPAT_PROBE_ENTERED:attachment_accessor_probe","J2H_COMPAT_ASSERTION:attachment_payload_limit:1048576"],"verifies_mod":"fabric-api","verified_feature":"Fabric attachment ClientboundCustomPayloadPacketAccessor Mixin returns the vanilla 26.3 payload limit (1048576)","behavior":"after Architectury and Fabric API initialization, invoke the transformed static accessor and assert the vanilla payload limit"}
+  ]
+}

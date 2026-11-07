@@ -9,6 +9,17 @@ import sys
 PRIVATE_ROOTS = {".local", "decompiled", "minecraft", "assets", "run", "logs"}
 PRIVATE_EXTENSIONS = {".jar", ".class", ".jfr", ".hprof", ".java"}
 ORIGINAL_JDK_TOOLS = {"tools/JfrSummary.java", "tests/java/JfrFixture.java"}
+# J2H's embedded bridge is original project code, and its small fixture jars are
+# compiled only from the adjacent project-owned sources. Mojang/mod jars remain
+# prohibited everywhere else.
+J2H_JAVA_ROOTS = {"crates/java2horizon/bridge-java", "crates/java2horizon/test_mod",
+                  "tools/j2h_compat/fixtures"}
+J2H_TEST_JARS = {
+    "crates/java2horizon/test_resources/j2h-runtime.jar",
+    "crates/java2horizon/test_resources/j2h-access-widener-agent.jar",
+    "crates/java2horizon/test_resources/libmod.jar",
+    "crates/java2horizon/test_resources/testmod.jar",
+}
 # The prepared folder's files in one file (crates/horizon-core/src/prepared_files.rs): Mojang's data.
 PRIVATE_NAMES = {"horizon-data.bin"}
 
@@ -17,6 +28,10 @@ def prohibited(path):
     parsed = PurePosixPath(path)
     # Original JDK-only tools are an exact allowlist; recovered game Java stays private.
     if path in ORIGINAL_JDK_TOOLS:
+        return False
+    if path in J2H_TEST_JARS:
+        return False
+    if parsed.suffix == ".java" and any(path.startswith(root + "/") for root in J2H_JAVA_ROOTS):
         return False
     # Original Horizon mod sources may also be tracked.
     if parsed.suffix == ".java" and path.startswith(("mods/horizon/src/", "mods/horizon-lab/src/")):
