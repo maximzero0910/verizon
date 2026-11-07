@@ -47,7 +47,7 @@ Get **the Horizon launcher** from [playhorizon.dev](https://playhorizon.dev) or 
 - **Extras:** new menus, graphics presets, distant terrain up to 1024 chunks, controllers, zoom, minimap and more, off by default where they change the vanilla look. [Settings](https://playhorizon.dev/docs/settings).
 - **Packs:** resource packs, and data packs with functions, predicates, item modifiers and world generation.
 - **Multiplayer:** invite friends with a code, Open to LAN, join servers (online mode included). [Multiplayer](https://playhorizon.dev/docs/multiplayer).
-- **Mods:** content mods (blocks, items, data) and native Rust mods, built by the launcher with nothing to install. Java mod jars do not run. [Mods](https://playhorizon.dev/docs/mods).
+- **Mods:** content mods (blocks, items, data) and native Rust mods, built by the launcher. An experimental Java/Fabric compatibility runtime (J2H) is available for global testing; compatibility varies by mod, and many Minecraft APIs and GUI paths are not implemented. It is not a drop-in Fabric client. [J2H testing guide](docs/java-mods.md) · [Mods](https://playhorizon.dev/docs/mods).
 
 In the Rust client, with vanilla assets and no mods or shaders:
 
@@ -104,6 +104,22 @@ cargo run --release -p horizon-client
 ```
 
 Prepared files land in the gitignored `.local/`: never commit or share them. Options, controls and architecture: [the native client guide](docs/native-client.md); all developer docs: [docs/README.md](docs/README.md).
+
+### Try experimental Java/Fabric mod support
+
+J2H is compiled into a J2H-enabled Horizon client. The profile installer verifies that build, creates a separate game directory, and stages only the selected pinned test mods; it does not modify the Horizon launcher or patch a binary in place. See the [global testing guide](docs/java-mods.md#global-testing-preview) for prerequisites, commands, current test status, and limitations. For example, after preparing resources and building Horizon:
+
+```sh
+python3 tools/j2h_patcher.py install \
+  --client target/fast/horizon-client \
+  --resources .local/horizon-client/26.3 \
+  --profile "$HOME/Horizon-J2H-26.3" \
+  --mods modmenu roughlyenoughitems
+python3 tools/j2h_patcher.py status --profile "$HOME/Horizon-J2H-26.3"
+python3 tools/j2h_patcher.py launch --profile "$HOME/Horizon-J2H-26.3" --creative
+```
+
+Mod JARs execute code and are not sandboxed by J2H. Use only mods whose source and distribution you trust. The compatibility catalog records exact artifact versions, licenses and checksums. Compatibility remains incomplete: an earlier Mod Menu run passed seven GUI assertions, but the latest live rerun passed six and failed its scrolling assertion. REI inventory overlays and several configuration screens remain broken or unverified.
 
 ## Roadmap
 
