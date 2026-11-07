@@ -142,6 +142,11 @@ pub const WORLD_ICON_SLOTS: usize = 32;
 pub const PACK_ICON_SLOTS: usize = 64;
 /// A pack icon slot's side: vanilla's own icons are 128x128.
 pub const PACK_ICON_SIZE: u32 = 128;
+/// Dynamic Java/Fabric mod logos transferred by the J2H GUI bridge.
+pub const JAVA_MOD_ICON_SLOTS: usize = 64;
+/// Mod Menu displays its cached Fabric icons at small GUI sizes; 64 preserves the
+/// decoded icon resolution while keeping the reserved atlas space bounded.
+pub const JAVA_MOD_ICON_SIZE: u32 = 64;
 /// Atlas slots for armour trim textures made at run time (`trims`), each the
 /// size of the largest trim texture.
 pub const TRIM_SLOTS: usize = 32;
@@ -888,6 +893,15 @@ impl HudAtlas {
                 format!("horizon/pack-icon{i}"),
                 PACK_ICON_SIZE,
                 PACK_ICON_SIZE,
+                vec![0; side * side * 4],
+            ));
+        }
+        let side = JAVA_MOD_ICON_SIZE as usize;
+        for i in 0..JAVA_MOD_ICON_SLOTS {
+            images.push((
+                format!("horizon/java-mod-icon{i}"),
+                JAVA_MOD_ICON_SIZE,
+                JAVA_MOD_ICON_SIZE,
                 vec![0; side * side * 4],
             ));
         }

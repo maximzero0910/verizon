@@ -2857,6 +2857,8 @@ impl OptionsUi {
                             label = label.append(tr("horizon.mods.stopped"));
                         } else if installed.dev {
                             label = label.append(tr("horizon.mods.dev"));
+                        } else if s.mods.is_java(i) {
+                            label = label.append(tr("horizon.mods.java"));
                         }
                         // A content mod's set feeds the block-state tables the
                         // open world's chunks were decoded with: changing it
@@ -2867,8 +2869,10 @@ impl OptionsUi {
                         if self.in_world && content {
                             label = label.append(tr("horizon.mods.in_world"));
                         }
-                        let dead =
-                            installed.dev || installed.id.is_empty() || self.in_world && content;
+                        let dead = installed.dev
+                            || installed.id.is_empty()
+                            || s.mods.is_java(i)
+                            || self.in_world && content;
                         // Only native mods with actual settings need a second button.
                         if installed
                             .native

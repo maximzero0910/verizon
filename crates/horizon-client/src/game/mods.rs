@@ -71,6 +71,9 @@ pub(super) fn content_root(
     root: &std::path::Path,
     enabled: &std::collections::BTreeSet<String>,
     dev: &[std::path::PathBuf],
+    dedicated: bool,
+    benchmark: bool,
+    player_name: &str,
 ) -> std::path::PathBuf {
     use horizon_client::mod_content::{self, ContentMod};
     use horizon_mods::{Capability, Content, Package};
@@ -78,6 +81,18 @@ pub(super) fn content_root(
     let mut paths = horizon_mods::find(&here.join(mod_list::DIR));
     paths.retain(|p| !dev.contains(p));
     paths.extend(dev.iter().cloned());
+    // Java mods are code: run them once and add the content-mod roots their
+    // registrations produced. They are read like any other content mod, and
+    // are always on: the runtime already skipped jars disabled with `.disabled`.
+    let java_roots = super::java_mods::content_roots(
+        &here,
+        root,
+        &here.join(".horizon-cache"),
+        dedicated,
+        benchmark,
+        player_name,
+    );
+    paths.extend(java_roots.iter().cloned());
     let mut known = None;
     let mut mods: Vec<ContentMod> = Vec::new();
     // The first load's list stays (`set_local`): a reload does not hash the files again.
@@ -88,7 +103,7 @@ pub(super) fn content_root(
             continue;
         };
         let m = &package.manifest;
-        let on = enabled.contains(&m.id) || dev.contains(path);
+        let on = enabled.contains(&m.id) || dev.contains(path) || java_roots.contains(path);
         if !on
             || !m.capabilities.contains(&Capability::Registries)
             || mods.iter().any(|c| c.id == m.id)
@@ -389,6 +404,41 @@ impl Game<'_> {
                 }
             })
             .collect();
+        // Java/Fabric jars run before the resource root is built; list them
+        // beside content mods, on until the jar is renamed to `.disabled`.
+        if super::java_mods::runtime_enabled(self.options.benchmark.is_some()) {
+            let java_dir = super::java_mods::java_mods_dir(&Self::game_dir());
+            let mut java_paths: Vec<PathBuf> = std::fs::read_dir(&java_dir)
+                .map(|d| d.flatten().map(|e| e.path()).collect())
+                .unwrap_or_default();
+            java_paths.retain(|p| {
+                p.extension().is_some_and(|e| e == "jar") || p.join("fabric.mod.json").is_file()
+            });
+            java_paths.sort();
+            for path in java_paths {
+                let Ok(meta) = java2horizon::load_mod_meta(&path) else {
+                    continue;
+                };
+                if self
+                    .settings
+                    .mods
+                    .installed
+                    .iter()
+                    .any(|row| row.id == meta.id)
+                {
+                    continue;
+                }
+                self.settings.mods.java.insert(meta.id.clone());
+                self.settings.mods.installed.push(Installed {
+                    id: meta.id.clone(),
+                    title: format!("{} {}", meta.display_name(), meta.version),
+                    description: meta.description.unwrap_or_default(),
+                    problem: None,
+                    dev: false,
+                    native: None,
+                });
+            }
+        }
         // A mod with a native version built in says so instead, and isn't news.
         self.list_native_mods();
         let built = std::env::current_exe()

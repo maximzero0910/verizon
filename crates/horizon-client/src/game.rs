@@ -155,6 +155,8 @@ mod item_areas;
 mod item_draw;
 mod item_particles;
 mod item_use;
+mod j2h_screen;
+mod java_mods;
 mod jigsaw_blocks;
 mod jigsaw_edit;
 mod jukebox;
@@ -695,6 +697,13 @@ impl Options {
                     );
                     return Ok(None);
                 }
+                "--j2h-info" => {
+                    println!(
+                        "{{\"runtime\":\"java2horizon\",\"minecraft_version\":\"{}\",\"profile_schema\":1}}",
+                        horizon_core::VANILLA_VERSION
+                    );
+                    return Ok(None);
+                }
                 "--launch-api" => {
                     println!("{}", launch_api::reply(&horizon_client::crash::version()));
                     return Ok(None);
@@ -863,6 +872,10 @@ enum Screen {
     /// A screen of a native mod's own (`native_mod_screen_open`): it draws and
     /// takes its input through the screen hooks.
     Mod,
+    /// A real Minecraft `Screen` hosted by the Java bridge (`game/j2h_screen.rs`):
+    /// the JVM runs the unmodified Fabric GUI and Horizon paints its extractor
+    /// commands.
+    JavaMods,
 }
 impl Screen {
     /// The id native mods see for this screen (`NativeScreenView.id`, the
@@ -891,6 +904,7 @@ impl Screen {
             Screen::Win => "win",
             Screen::DebugOptions => "debug_options",
             Screen::Mod => "mod",
+            Screen::JavaMods => "java_mods",
         }
     }
 }
@@ -2566,6 +2580,8 @@ struct Game<'a> {
     /// `horizon-ctl gpu-passes`: time Horizon's own passes on the GPU with F3 shut.
     gpu_passes: bool,
     screen: Screen,
+    /// Screen to return to when the Java-hosted screen closes.
+    java_gui_previous_screen: Option<Screen>,
     observed_screen: Option<native_hooks::ObservedScreen>,
     window: Option<Arc<Window>>,
     renderer: Option<Renderer>,
@@ -9093,6 +9109,7 @@ impl Game<'_> {
             Screen::Stats => self.draw_stats(&mut batch),
             Screen::Advancements => self.draw_advancements(&mut batch),
             Screen::Mod => {}
+            Screen::JavaMods => self.draw_java_mods(&mut batch),
             Screen::WorldOptions => self.draw_world_options(&mut batch),
             Screen::Friends => self.draw_friends_screen(&mut batch),
             Screen::Social => self.draw_social_screen(&mut batch),
@@ -16799,6 +16816,22 @@ impl Game<'_> {
             }
             return Ok(());
         }
+        // The Java-hosted screen receives Escape too, so its real Screen
+        // decides whether to close and clears the bridge through onClose.
+        if self.java_gui_active() {
+            self.j2h_key(key, true);
+            if !java2horizon::gui::is_open() {
+                self.close_java_mods_screen();
+            }
+            return Ok(());
+        }
+        if self.has_java_gui()
+            && matches!(self.screen, Screen::Playing | Screen::Paused)
+            && raw == KeyCode::KeyM
+        {
+            self.open_java_mods_screen();
+            return Ok(());
+        }
         if self.sort_key_press(key) || self.hdr_key_press(key) {
             return Ok(());
         }
@@ -16848,6 +16881,7 @@ impl Game<'_> {
                 Screen::Win => self.close_win_screen()?,
                 Screen::DebugOptions => self.close_debug_options(),
                 Screen::Mod => self.close_mod_screen(),
+                Screen::JavaMods => self.close_java_mods_screen(),
             },
             // `checkHotbarKeyPressed`: the keys the controls bind to the off
             // hand and the hotbar slots, so a rebound key swaps instead of
@@ -17806,6 +17840,20 @@ impl Game<'_> {
         ) {
             self.last_input = Instant::now();
         }
+        // A Java-hosted real Minecraft screen takes keyboard, mouse and wheel
+        // itself, so the game's own screen handlers never see them. Frames,\n        // resizes and the like pass through so the world still renders.
+        if self.java_gui_active()
+            && matches!(
+                event,
+                WindowEvent::KeyboardInput { .. }
+                    | WindowEvent::MouseInput { .. }
+                    | WindowEvent::MouseWheel { .. }
+                    | WindowEvent::CursorMoved { .. }
+            )
+        {
+            self.java_screen_event(&event);
+            return;
+        }
         if !self.pad_synthetic_input()
             && matches!(
                 event,
@@ -18066,6 +18114,12 @@ impl Game<'_> {
                 WindowEvent::Resized(size) => {
                     if let Some(r) = &mut self.renderer {
                         r.resize(size.width, size.height);
+                    }
+                    if self.java_gui_active() {
+                        java2horizon::gui::resize(
+                            self.gui_size().0 as i32,
+                            self.gui_size().1 as i32,
+                        );
                     }
                     self.observe_fullscreen();
                 }
@@ -19413,6 +19467,7 @@ impl<'a> Game<'a> {
             debug: false,
             gpu_passes: false,
             screen: Screen::Playing,
+            java_gui_previous_screen: None,
             observed_screen: None,
             window: None,
             renderer: None,
@@ -22221,6 +22276,9 @@ pub fn run_with() -> Result<()> {
         &options.resources,
         &early_settings.mods.enabled,
         &options.dev_mods,
+        options.dedicated.is_some(),
+        options.benchmark.is_some(),
+        &options.player_name(),
     );
     let loaded = load_resources(
         options.resources.clone(),

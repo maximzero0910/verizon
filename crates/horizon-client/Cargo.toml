@@ -43,6 +43,9 @@ horizon-narrator = { path = "../horizon-narrator" }
 # Horizon mods: sandboxed WebAssembly components, off unless installed and turned on (docs/mods.md).
 # Their runtime is the `mods` feature.
 horizon-mods = { path = "../horizon-mods", default-features = false, features = ["index"] }
+# Java/Fabric compatibility runtime: scans `mods/`, runs Fabric entrypoints and
+# turns their registrations into a content-mod root (docs/java-mods.md).
+java2horizon = { path = "../java2horizon" }
 wgpu = { version = "30.0.1", default-features = false, features = ["std", "parking_lot", "vulkan", "metal", "wgsl", "naga-ir"] }
 winit = "0.30.13"
 pollster = "0.4"

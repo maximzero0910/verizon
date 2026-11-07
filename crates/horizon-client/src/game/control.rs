@@ -234,6 +234,19 @@ impl Game<'_> {
     /// taken one, not the characters `\` and `b`. `Err` when no text box of
     /// the screen takes it.
     pub(super) fn type_into_screen(&mut self, text: &str) -> Result<()> {
+        // A Java-hosted screen owns its own widgets: send the characters to the
+        // real EditBox, and `\b` as the Backspace key it handles.
+        if self.screen == Screen::JavaMods {
+            if text == "\\b" {
+                self.j2h_key(winit::keyboard::KeyCode::Backspace, true);
+                self.j2h_key(winit::keyboard::KeyCode::Backspace, false);
+            } else {
+                for ch in text.chars() {
+                    self.j2h_char(ch);
+                }
+            }
+            return Ok(());
+        }
         if text == "\\b" {
             match self.screen {
                 Screen::WorldOptions => {
@@ -1255,6 +1268,7 @@ impl Game<'_> {
             Screen::Win => "win",
             Screen::DebugOptions => "debug-options",
             Screen::Mod => "mod",
+            Screen::JavaMods => "java-mods",
         }
     }
 

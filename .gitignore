@@ -5,6 +5,8 @@
 /.venv/
 # Downloaded/decompiled game content and private profiling artifacts.
 *.jar
+# Java2Horizon's own test jars are source, not game files.
+!/crates/java2horizon/test_resources/*.jar
 *.class
 *.jfr
 *.hprof
@@ -30,6 +32,7 @@
 /servers.dat
 /screenshots/
 /.horizon-cache/
+/java2horizon-m3.zip
 /crash-reports/
 /debug/
 

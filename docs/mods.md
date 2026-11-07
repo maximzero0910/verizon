@@ -1,16 +1,21 @@
 # Horizon mods
 
-Two kinds of mod run in Horizon:
+Two kinds of mod run in Horizon, plus an experimental Java bridge:
 
 | Kind | File | What it is | Where it runs |
 |---|---|---|---|
 | **Content mod** | `.hmod` | Data and assets: blocks, items, recipes, loot, tags, models, textures, structures. No code. | Read when the game starts |
 | **Native mod** | `.hnmod` | A [horizon-mixins](https://github.com/horizon-rust/horizon-mixins) bundle: Rust that changes the game's own source before it is compiled. | In a game the launcher builds for the player ([native-mods.md](native-mods.md)) |
+| **Java mod** | `.jar` | A narrow Fabric-style mod run by the experimental Java2Horizon bridge. | Before the content root is built ([java-mods.md](java-mods.md)) |
 
 Fabric and NeoForge jars do **not** run as they are: their code calls and patches Minecraft's Java classes, and
-Horizon has none. What carries over is the data and assets inside a jar ([modpacks.md](modpacks.md)).
+Horizon has none. The experimental Java bridge can run a mod that only uses its own classes and J2H's registration
+natives; it is not the Fabric Loader. What carries over from an ordinary jar is the data and assets inside it
+([modpacks.md](modpacks.md)).
 
-Mods are **off by default**. A fresh install has no `horizon-mods` folder and plays exactly like vanilla 26.3.
+Content and native mods are **off by default**. A fresh install has no `horizon-mods` folder and plays exactly
+like vanilla 26.3. The experimental Java runtime loads jars found in the game folder's `mods/` directory and lists
+them on the Mods page with a `(Java)` mark; see [java-mods.md](java-mods.md).
 
 ## Playing with mods
 

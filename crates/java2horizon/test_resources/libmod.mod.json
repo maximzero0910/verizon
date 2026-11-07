@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "id": "libmod",
+  "version": "1.0.0",
+  "name": "Lib Mod",
+  "entrypoints": { "main": ["com.example.libmod.LibMod"] },
+  "depends": { "java": ">=17" }
+}

@@ -28,6 +28,9 @@ pub struct ModList {
     /// The keys the player chose for mods' keys, mod id → key name → key
     /// (`key.<id>.<name>:key.keyboard.x` lines).
     pub keys: BTreeMap<String, BTreeMap<String, String>>,
+    /// Java/Fabric mods found in `mods/`: listed on the Mods page, on until
+    /// the jar is renamed to `.disabled`, so not persisted here.
+    pub java: BTreeSet<String>,
     /// What the Mods page shows, filled by the game from the mods it found.
     pub installed: Vec<Installed>,
 }
@@ -89,6 +92,7 @@ impl ModList {
             enabled,
             disabled,
             keys,
+            java: BTreeSet::new(),
             installed: Vec::new(),
         }
     }
@@ -121,12 +125,19 @@ impl ModList {
     pub fn is_on(&self, i: usize) -> bool {
         self.installed.get(i).is_some_and(|m| {
             m.dev
-                || if m.native.is_some() {
+                || if m.native.is_some() || self.java.contains(&m.id) {
                     !self.disabled.contains(&m.id)
                 } else {
                     self.enabled.contains(&m.id)
                 }
         })
+    }
+    /// A Java/Fabric mod from `mods/`: it runs at startup, so its row is a
+    /// report, not a live toggle.
+    pub fn is_java(&self, i: usize) -> bool {
+        self.installed
+            .get(i)
+            .is_some_and(|m| self.java.contains(&m.id))
     }
     /// Turns installed mod `i` on or off (a dev mod stays on). A native mod's
     /// line says `false` when off, so that the launcher's next build leaves
@@ -145,6 +156,9 @@ impl ModList {
         let Some(m) = self.installed.get(i).filter(|m| !m.dev) else {
             return;
         };
+        if self.java.contains(&m.id) {
+            return;
+        }
         if m.native.is_some() {
             if self.disabled.remove(&m.id) {
                 self.enabled.insert(m.id.clone());
@@ -216,5 +230,11 @@ mod tests {
         list.toggle(2);
         assert!(list.is_on(2));
         assert_eq!(list.serialize(), "mod.c:true\n");
+        list.installed.push(installed("j", false));
+        list.java.insert("j".into());
+        assert!(list.is_on(3));
+        list.toggle(3);
+        assert!(list.is_on(3));
+        assert!(list.is_java(3));
     }
 }

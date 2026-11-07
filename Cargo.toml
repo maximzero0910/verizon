@@ -31,6 +31,7 @@ members = [
     "crates/horizon-friends",
     "crates/horizon-relay",
     "crates/horizon-mods",
+    "crates/java2horizon",
     "crates/horizon-mod-api-gen",
     "crates/horizon-mod-api-gen/dispatch-tests",
     "crates/cargo-horizon-mod",
