@@ -1,0 +1,12 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "dev.horizon.j2h.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "client": [
+    "ScreenPanoramaMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

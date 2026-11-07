@@ -110,6 +110,30 @@ def evaluate_rei_gui_evidence(control_log):
     }
 
 
+def evaluate_jade_cloth_config_evidence(control_log):
+    """Keep Cloth Config's screen transition distinct from successful extraction."""
+    screen = "me.shedaniel.clothconfig2.gui.GlobalizedClothConfigScreen"
+    opened = f"screen accepted: {screen}" in control_log
+    match = re.search(
+        rf"R2 renderFrame done screen={re.escape(screen)} "
+        r"fill=(\d+) grad=(\d+) text=(\d+) sprite=(\d+) blit=(\d+) rstate=(\d+)",
+        control_log,
+    )
+    return {
+        "jade_cloth_config_screen_opened": opened,
+        "jade_cloth_config_screen_rendered": match is not None,
+        "jade_cloth_config_render_commands": (
+            {
+                name: int(value) for name, value in zip(
+                    ("fill", "gradient", "text", "sprite", "blit", "render_state_text"),
+                    match.groups(),
+                )
+            }
+            if match else None
+        ),
+    }
+
+
 def stage_fixture_files(selected, game_dir):
     source_root = (ROOT / "tools" / "j2h_compat" / "fixtures").resolve()
     staged = {}
@@ -461,6 +485,12 @@ def run_scenario(args):
         "HORIZON_LAUNCHER_CLIPBOARD": str(isolated["HORIZON_HOME"].parent / "clipboard"),
         "HORIZON_LAUNCHER_DESKTOP": str(isolated["HORIZON_HOME"].parent / "desktop"),
     })
+    if "modmenu" in (args.mods or []):
+        # The live GUI checks use these bounded screen markers to distinguish
+        # accepting a Java screen from actually extracting its render state.
+        env["JAVA_TOOL_OPTIONS"] = (
+            env.get("JAVA_TOOL_OPTIONS", "") + " -Dj2h.debug.gui=true"
+        ).strip()
     env.pop("WAYLAND_DISPLAY", None)
     library_cache = LAB / "library-cache"
     if library_cache.is_dir():
@@ -527,6 +557,27 @@ def run_scenario(args):
             time.sleep(0.5)
             gui["reopened_screen"] = json.loads(ctl(socket_path, "screen")).get("screen")
             gui["reopen_succeeded"] = gui["reopened_screen"] == "java-mods"
+            if {"modmenu", "jade"}.issubset({mod["mod_id"] for mod in selected}):
+                # Jade's Mod Menu provider returns Cloth Config's
+                # GlobalizedClothConfigScreen, the exact screen family from
+                # the reported extractPanorama NPE.
+                ctl(socket_path, "click-at", "100", "30")
+                ctl(socket_path, "type", "Jade")
+                time.sleep(0.3)
+                ctl(socket_path, "click-at", "80", "100")
+                time.sleep(0.2)
+                ctl(socket_path, "click-at", "477", "55")
+                time.sleep(0.7)
+                ctl(socket_path, "screenshot", str(run_dir / "jade-cloth-config.png"))
+                gui["jade_cloth_config_screen_opened"] = False
+                gui["jade_cloth_config_screen_rendered"] = False
+                gui["jade_cloth_config_render_commands"] = None
+                ctl(socket_path, "key", "esc", "tap")
+                time.sleep(0.2)
+                ctl(socket_path, "click-at", "100", "30")
+                for _ in range(len("Jade")):
+                    ctl(socket_path, "type", "\\b")
+                time.sleep(0.2)
             if {"modmenu", "roughlyenoughitems"}.issubset({mod["mod_id"] for mod in selected}):
                 # Open REI through the real Mod Menu config-provider path. This
                 # captures the live screen so its settings and click targets
@@ -544,6 +595,13 @@ def run_scenario(args):
                 gui["rei_config_screen_rendered"] = False
                 gui["rei_config_screen_render_commands"] = None
                 ctl(socket_path, "key", "esc", "tap")
+                time.sleep(0.2)
+                # Closing the provider screen returns to Mod Menu with its
+                # search query intact. Clear it before the independent scroll
+                # assertion so the list has all resolved mods to scroll.
+                ctl(socket_path, "click-at", "100", "30")
+                for _ in range(len("Roughly Enough Items")):
+                    ctl(socket_path, "type", "\\b")
                 time.sleep(0.2)
             # Fabric's built-in Minecraft row precedes the user mods. Select
             # the second row so the scroll assertion exercises a longer user
@@ -601,6 +659,8 @@ def run_scenario(args):
     ]
     if "rei_config_screen_opened" in gui:
         gui.update(evaluate_rei_gui_evidence(control_log))
+    if "jade_cloth_config_screen_opened" in gui:
+        gui.update(evaluate_jade_cloth_config_evidence(control_log))
     selected_ids = {entry["mod_id"] for entry in selected}
     mod_failures = {}
     dependency_skips = {}

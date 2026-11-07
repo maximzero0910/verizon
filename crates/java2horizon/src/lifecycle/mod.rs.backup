@@ -1,0 +1,306 @@
+//! Staged lifecycle reconciling Fabric initialization with Horizon content
+//! preparation.
+//!
+//! Fabric expects registration during `ModInitializer.onInitialize()`.
+//! Horizon expects content definitions present when its resource root is
+//! built, before a world loads. J2H runs the Java entrypoints while
+//! recording bridge registrations, writes a Horizon content-mod tree, then
+//! validates it with `horizon-mods`.
+//!
+//! Discover -> ResolveDeps -> ResolveLibraries -> StartJvm -> LoadClasses ->
+//! CollectContent -> EmitHorizonContent -> PrepareResources -> PostInit -> Ready
+
+use crate::bridge::Bridge;
+use crate::fabric::{EntrypointSide, FabricEntrypoint, FabricLoader};
+use crate::horizon_shim::HorizonEngine;
+use crate::jvm::{JvmConfig, JvmRuntime};
+use log::{info, warn};
+use std::path::{Path, PathBuf};
+use thiserror::Error;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Stage {
+    Discover,
+    ResolveDeps,
+    ResolveLibraries,
+    StartJvm,
+    LoadClasses,
+    CollectContent,
+    EmitHorizonContent,
+    PrepareResources,
+    PostInit,
+    Ready,
+}
+
+#[derive(Error, Debug)]
+pub enum LifecycleError {
+    #[error("stage {0:?}: {1}")]
+    Stage(Stage, String),
+    #[error(transparent)]
+    Other(#[from] Box<dyn std::error::Error + Send + Sync>),
+}
+
+pub struct Lifecycle {
+    pub stage: Stage,
+    pub loader: FabricLoader,
+    pub jvm: Option<JvmRuntime>,
+    pub bridge: Bridge,
+    pub engine: HorizonEngine,
+    pub content_roots: Vec<PathBuf>,
+    pub side: EntrypointSide,
+    library_cache: Option<PathBuf>,
+}
+
+impl Lifecycle {
+    pub fn new() -> Self {
+        Self {
+            stage: Stage::Discover,
+            loader: FabricLoader::new(),
+            jvm: None,
+            bridge: Bridge::new(),
+            engine: HorizonEngine::new(),
+            content_roots: Vec::new(),
+            side: EntrypointSide::Client,
+            library_cache: None,
+        }
+    }
+
+    /// Where official Fabric Loader libraries are cached (or read from
+    /// `HORIZON_FABRIC_LIBS_DIR`).
+    pub fn set_library_cache(&mut self, cache: PathBuf) {
+        self.library_cache = Some(cache);
+    }
+
+    /// Run `main` + `client` (the default) or `main` + `server` entrypoints.
+    pub fn set_side(&mut self, side: EntrypointSide) {
+        self.side = side;
+        self.loader.set_side(side);
+    }
+
+    pub fn discover_mod(&mut self, jar: PathBuf, meta: &Path) -> Result<(), LifecycleError> {
+        self.stage = Stage::Discover;
+        self.loader
+            .add_mod(jar, meta)
+            .map_err(|e| LifecycleError::Stage(Stage::Discover, e.to_string()))?;
+        Ok(())
+    }
+
+    /// Discover every Fabric mod in `dir`; nested jars are unpacked under
+    /// `nested_cache`.
+    pub fn discover_dir(
+        &mut self,
+        dir: &Path,
+        nested_cache: Option<&Path>,
+    ) -> Result<usize, LifecycleError> {
+        self.stage = Stage::Discover;
+        let added = self.loader.discover_dir_with_nested(dir, nested_cache);
+        info!("J2H: discovered {added} mod(s) in {}", dir.display());
+        Ok(added)
+    }
+
+    pub fn resolve_deps(&mut self) -> Result<(), LifecycleError> {
+        self.stage = Stage::ResolveDeps;
+        self.loader
+            .check_dependencies()
+            .map_err(|e| LifecycleError::Stage(Stage::ResolveDeps, e.to_string()))?;
+        info!("J2H: dependencies OK for {:?}", self.loader.mod_ids());
+        Ok(())
+    }
+
+    pub fn start_jvm(&mut self) -> Result<(), LifecycleError> {
+        self.stage = Stage::StartJvm;
+        let jars = self.loader.jars();
+        if jars.is_empty() {
+            return Err(LifecycleError::Stage(
+                Stage::StartJvm,
+                "no Java mods to start a JVM for".into(),
+            ));
+        }
+        let config = JvmConfig::with_classpath(jars);
+        let jvm = JvmRuntime::start(config)
+            .map_err(|e| LifecycleError::Stage(Stage::StartJvm, e.to_string()))?;
+        self.jvm = Some(jvm);
+        Ok(())
+    }
+
+    pub fn load_classes_and_bridge(&mut self) -> Result<(), LifecycleError> {
+        self.stage = Stage::LoadClasses;
+        let jvm = self
+            .jvm
+            .as_ref()
+            .ok_or_else(|| LifecycleError::Stage(Stage::LoadClasses, "JVM not started".into()))?;
+        let registered = self
+            .bridge
+            .register_natives(jvm)
+            .map_err(|e| LifecycleError::Stage(Stage::LoadClasses, e.to_string()))?;
+        if registered == 0 {
+            warn!("J2H: no NativeBridge class; mods cannot register content");
+        }
+        Ok(())
+    }
+
+    /// Run each mod's main entrypoints, in dependency order, with bridge
+    /// events attributed to the running mod.
+    pub fn collect_content(&mut self) -> Result<(), LifecycleError> {
+        self.stage = Stage::CollectContent;
+        let jvm = self.jvm.as_ref().ok_or_else(|| {
+            LifecycleError::Stage(Stage::CollectContent, "JVM not started".into())
+        })?;
+        let order: Vec<(String, Vec<FabricEntrypoint>)> = self
+            .loader
+            .ordered()
+            .iter()
+            .map(|m| {
+                (
+                    m.meta.id.clone(),
+                    m.entrypoints(self.side.keys())
+                        .into_iter()
+                        .cloned()
+                        .collect(),
+                )
+            })
+            .collect();
+        for (mod_id, entrypoints) in order {
+            self.bridge.set_current_mod(Some(mod_id.clone()));
+            for entrypoint in &entrypoints {
+                entrypoint
+                    .run(jvm)
+                    .map_err(|e| LifecycleError::Stage(Stage::CollectContent, e.to_string()))?;
+            }
+            // A mod that does not call back still completed its entrypoint.
+            self.engine.mark_initialized(&mod_id);
+            self.bridge.set_current_mod(None);
+        }
+        Ok(())
+    }
+
+    /// Drain bridge events into the Horizon engine and write content-mod trees.
+    pub fn emit_horizon_content(&mut self, out_root: &Path) -> Result<(), LifecycleError> {
+        self.stage = Stage::EmitHorizonContent;
+        let events = self.bridge.take_events();
+        if events.is_empty() {
+            warn!("J2H: no bridge events during CollectContent");
+        }
+        for ev in &events {
+            self.engine
+                .apply(ev)
+                .map_err(|e| LifecycleError::Stage(Stage::EmitHorizonContent, e.to_string()))?;
+        }
+        let written = self
+            .engine
+            .emit_content_mods(out_root)
+            .map_err(|e| LifecycleError::Stage(Stage::EmitHorizonContent, e.to_string()))?;
+        self.content_roots = written;
+        info!(
+            "J2H: emitted {} content-mod root(s) under {}",
+            self.content_roots.len(),
+            out_root.display()
+        );
+        Ok(())
+    }
+
+    /// Validate emitted trees with real `horizon_mods::content::Content::read`.
+    pub fn prepare_resources(&mut self) -> Result<(), LifecycleError> {
+        self.stage = Stage::PrepareResources;
+        self.engine
+            .validate_with_horizon_mods(&self.content_roots)
+            .map_err(|e| LifecycleError::Stage(Stage::PrepareResources, e.to_string()))?;
+        Ok(())
+    }
+
+    pub fn post_init(&mut self) -> Result<(), LifecycleError> {
+        self.stage = Stage::PostInit;
+        // Client and server post-init entrypoints run after content is fixed.
+        Ok(())
+    }
+
+    pub fn finish(&mut self) -> Result<(), LifecycleError> {
+        self.stage = Stage::Ready;
+        info!("J2H: Ready");
+        Ok(())
+    }
+
+    /// Run the full staged pipeline.
+    pub fn run_all(&mut self, content_out: &Path) -> Result<(), LifecycleError> {
+        self.resolve_deps()?;
+        self.resolve_libraries()?;
+        self.start_jvm()?;
+        self.load_classes_and_bridge()?;
+        self.collect_content()?;
+        self.emit_horizon_content(content_out)?;
+        self.prepare_resources()?;
+        self.post_init()?;
+        self.finish()?;
+        Ok(())
+    }
+
+    fn resolve_libraries(&mut self) -> Result<(), LifecycleError> {
+        self.stage = Stage::ResolveLibraries;
+        let cache = self
+            .library_cache
+            .clone()
+            .unwrap_or_else(|| std::env::temp_dir().join("horizon-java2horizon"));
+
+        if self.loader.needs_fabric_runtime() {
+            let already = self.classpath_names();
+            let jars = crate::fabric::libraries::ensure_libraries(&cache, &already)
+                .map_err(|e| LifecycleError::Stage(Stage::ResolveLibraries, e.to_string()))?;
+            for jar in jars {
+                self.loader.add_library_classpath(jar);
+            }
+        }
+
+        if self.loader.needs_minecraft_runtime() {
+            let already = self.classpath_names();
+            let resolver = crate::minecraft::Resolver::from_environment(cache);
+            let jars = resolver
+                .ensure(&already)
+                .map_err(|e| LifecycleError::Stage(Stage::ResolveLibraries, e.to_string()))?;
+            for jar in jars {
+                self.loader.add_library_classpath(jar);
+            }
+        }
+        Ok(())
+    }
+
+    fn classpath_names(&self) -> Vec<String> {
+        self.loader
+            .jars()
+            .iter()
+            .filter_map(|jar| {
+                jar.file_name()
+                    .map(|name| name.to_string_lossy().into_owned())
+            })
+            .collect()
+    }
+
+    /// Discover `mods_dir`, run the pipeline and return the content roots.
+    pub fn run_dir(
+        &mut self,
+        mods_dir: &Path,
+        content_out: &Path,
+    ) -> Result<Vec<PathBuf>, LifecycleError> {
+        self.set_library_cache(content_out.with_file_name("java2horizon-libraries"));
+        self.discover_dir(mods_dir, Some(&content_out.join("nested")))?;
+        self.run_all(content_out)?;
+        Ok(self.content_roots.clone())
+    }
+}
+
+impl Default for Lifecycle {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn empty_loader_is_not_a_reason_to_start_a_jvm() {
+        let mut life = Lifecycle::new();
+        let err = life.start_jvm().unwrap_err().to_string();
+        assert!(err.contains("no Java mods"), "{err}");
+    }
+}

@@ -24,6 +24,7 @@ import net.fabricmc.loader.impl.metadata.EntrypointMetadata;
 import net.fabricmc.loader.impl.metadata.LoaderModMetadata;
 import net.fabricmc.loader.impl.metadata.ModMetadataParser;
 import net.fabricmc.loader.impl.metadata.VersionOverrides;
+import org.spongepowered.asm.mixin.Mixins;
 
 /**
  * Bootstrap the real Fabric Loader singleton with J2H's own discovery.
@@ -214,6 +215,10 @@ public final class FabricLoaderBootstrap {
                 System.err.println("J2H: MixinExtras bootstrap ready");
             } catch (ClassNotFoundException ignored) {
                 // MixinExtras is optional for mods that do not declare it.
+            }
+
+            if (type == EnvType.CLIENT) {
+                Mixins.addConfiguration("j2h.mixins.json");
             }
 
             Method finish = FabricLauncherBase.class.getDeclaredMethod("finishMixinBootstrapping");

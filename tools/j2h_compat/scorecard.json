@@ -88,7 +88,10 @@
         ".local/j2h-compat/runs/combination-rei-texture-ids-v2-20261107/",
         ".local/j2h-compat/runs/combination-rei-texture-ids-v3-20261107/",
         ".local/j2h-compat/runs/j2h-global-testing-modmenu-20261107/",
-        ".local/j2h-compat/runs/j2h-global-testing-modmenu-regression-20261107/"
+        ".local/j2h-compat/runs/j2h-global-testing-modmenu-regression-20261107/",
+        ".local/j2h-compat/runs/rei-panorama-mixin-20261108/",
+        ".local/j2h-compat/runs/rei-panorama-mixin-debug-20261108/",
+        ".local/j2h-compat/runs/rei-config-scroll-reset-regression-20261108/"
       ],
       "features_verified": [
         "discovery",
@@ -189,7 +192,10 @@
         "combination-rei-texture-ids-v2-20261107",
         "combination-rei-texture-ids-v3-20261107",
         "j2h-global-testing-modmenu-20261107",
-        "j2h-global-testing-modmenu-regression-20261107"
+        "j2h-global-testing-modmenu-regression-20261107",
+        "rei-panorama-mixin-20261108",
+        "rei-panorama-mixin-debug-20261108",
+        "rei-config-scroll-reset-regression-20261108"
       ],
       "status": "BASELINE_FAILED",
       "tested_version": "21.0.0"
@@ -287,7 +293,10 @@
         ".local/j2h-compat/runs/combination-rei-texture-ids-v1-20261107/",
         ".local/j2h-compat/runs/combination-rei-texture-ids-v2-20261107/",
         ".local/j2h-compat/runs/combination-rei-texture-ids-v3-20261107/",
-        ".local/j2h-compat/runs/j2h-global-testing-modmenu-regression-20261107/"
+        ".local/j2h-compat/runs/j2h-global-testing-modmenu-regression-20261107/",
+        ".local/j2h-compat/runs/rei-panorama-mixin-20261108/",
+        ".local/j2h-compat/runs/rei-panorama-mixin-debug-20261108/",
+        ".local/j2h-compat/runs/rei-config-scroll-reset-regression-20261108/"
       ],
       "features_verified": [
         "aggregate JAR discovery",
@@ -388,7 +397,10 @@
         "combination-rei-texture-ids-v1-20261107",
         "combination-rei-texture-ids-v2-20261107",
         "combination-rei-texture-ids-v3-20261107",
-        "j2h-global-testing-modmenu-regression-20261107"
+        "j2h-global-testing-modmenu-regression-20261107",
+        "rei-panorama-mixin-20261108",
+        "rei-panorama-mixin-debug-20261108",
+        "rei-config-scroll-reset-regression-20261108"
       ],
       "status": "PARTIALLY_COMPATIBLE",
       "tested_version": "0.160.6+26.3"
@@ -714,7 +726,10 @@
         ".local/j2h-compat/runs/combination-rei-texture-ids-v1-20261107/",
         ".local/j2h-compat/runs/combination-rei-texture-ids-v2-20261107/",
         ".local/j2h-compat/runs/combination-rei-texture-ids-v3-20261107/",
-        ".local/j2h-compat/runs/j2h-global-testing-modmenu-regression-20261107/"
+        ".local/j2h-compat/runs/j2h-global-testing-modmenu-regression-20261107/",
+        ".local/j2h-compat/runs/rei-panorama-mixin-20261108/",
+        ".local/j2h-compat/runs/rei-panorama-mixin-debug-20261108/",
+        ".local/j2h-compat/runs/rei-config-scroll-reset-regression-20261108/"
       ],
       "features_verified": [
         "Runtime access widener transformation observed"
@@ -778,7 +793,10 @@
         "combination-rei-texture-ids-v1-20261107",
         "combination-rei-texture-ids-v2-20261107",
         "combination-rei-texture-ids-v3-20261107",
-        "j2h-global-testing-modmenu-regression-20261107"
+        "j2h-global-testing-modmenu-regression-20261107",
+        "rei-panorama-mixin-20261108",
+        "rei-panorama-mixin-debug-20261108",
+        "rei-config-scroll-reset-regression-20261108"
       ],
       "status": "IN_PROGRESS",
       "tested_version": "26.3.159+fabric"
@@ -1011,7 +1029,10 @@
         ".local/j2h-compat/runs/combination-rei-texture-ids-v1-20261107/",
         ".local/j2h-compat/runs/combination-rei-texture-ids-v2-20261107/",
         ".local/j2h-compat/runs/combination-rei-texture-ids-v3-20261107/",
-        ".local/j2h-compat/runs/j2h-global-testing-modmenu-regression-20261107/"
+        ".local/j2h-compat/runs/j2h-global-testing-modmenu-regression-20261107/",
+        ".local/j2h-compat/runs/rei-panorama-mixin-20261108/",
+        ".local/j2h-compat/runs/rei-panorama-mixin-debug-20261108/",
+        ".local/j2h-compat/runs/rei-config-scroll-reset-regression-20261108/"
       ],
       "features_verified": [
         "Runtime access widener transformation observed"
@@ -1077,7 +1098,10 @@
         "combination-rei-texture-ids-v1-20261107",
         "combination-rei-texture-ids-v2-20261107",
         "combination-rei-texture-ids-v3-20261107",
-        "j2h-global-testing-modmenu-regression-20261107"
+        "j2h-global-testing-modmenu-regression-20261107",
+        "rei-panorama-mixin-20261108",
+        "rei-panorama-mixin-debug-20261108",
+        "rei-config-scroll-reset-regression-20261108"
       ],
       "status": "IN_PROGRESS",
       "tested_version": "22.0.5+fabric"
@@ -1145,7 +1169,10 @@
         ".local/j2h-compat/runs/combination-rei-texture-ids-v1-20261107/",
         ".local/j2h-compat/runs/combination-rei-texture-ids-v2-20261107/",
         ".local/j2h-compat/runs/combination-rei-texture-ids-v3-20261107/",
-        ".local/j2h-compat/runs/j2h-global-testing-modmenu-regression-20261107/"
+        ".local/j2h-compat/runs/j2h-global-testing-modmenu-regression-20261107/",
+        ".local/j2h-compat/runs/rei-panorama-mixin-20261108/",
+        ".local/j2h-compat/runs/rei-panorama-mixin-debug-20261108/",
+        ".local/j2h-compat/runs/rei-config-scroll-reset-regression-20261108/"
       ],
       "features_verified": [
         "Runtime access widener transformation observed",
@@ -1210,7 +1237,10 @@
         "combination-rei-texture-ids-v1-20261107",
         "combination-rei-texture-ids-v2-20261107",
         "combination-rei-texture-ids-v3-20261107",
-        "j2h-global-testing-modmenu-regression-20261107"
+        "j2h-global-testing-modmenu-regression-20261107",
+        "rei-panorama-mixin-20261108",
+        "rei-panorama-mixin-debug-20261108",
+        "rei-config-scroll-reset-regression-20261108"
       ],
       "status": "PARTIALLY_COMPATIBLE",
       "tested_version": "26.3.824+fabric"

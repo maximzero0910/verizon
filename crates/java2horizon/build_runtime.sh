@@ -42,5 +42,6 @@ javac --release 17 -classpath "$CLASSPATH" -d "$TMP/agent-classes" \
 mapfile -d '' SOURCES < <(find "$ROOT/bridge-java" -type f -name '*.java' \
     ! -name 'AccessWidenerAgent.java' -print0 | sort -z)
 javac --release 17 -classpath "$CLASSPATH" -d "$TMP/classes" "${SOURCES[@]}"
+cp "$ROOT/bridge-java/j2h.mixins.json" "$TMP/classes/j2h.mixins.json"
 jar --create --file "$OUTPUT" -C "$TMP/classes" .
 echo "Built $OUTPUT"
