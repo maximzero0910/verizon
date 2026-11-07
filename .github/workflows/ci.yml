@@ -78,8 +78,11 @@ jobs:
           rustup toolchain install stable --profile minimal --component rustfmt --component clippy
           rustup default stable
           echo "WGPU_BACKEND=dx12" >> "$GITHUB_ENV"
-      - name: Test offline research tooling
-        run: python -m unittest discover -s tests -v
+      - name: Test offline tooling and validate the pinned J2H compatibility catalog
+        run: |
+          python -m unittest discover -s tests -v
+          python3 tools/j2h_compat.py validate
+          python3 tools/j2h_patcher.py --help
       - name: Install Rust toolchain and the ALSA and udev headers the client links against
         if: steps.rust.outputs.required != 'false'
         env:

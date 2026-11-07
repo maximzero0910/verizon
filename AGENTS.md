@@ -46,6 +46,7 @@ Game workspace (root `Cargo.toml`); `launcher/` and `crates/horizon-telemetry-se
 | `horizon-client-lib` | Reusable client systems, `horizon-ctl`, probes and their tests. Its manifest points to the existing sources under `crates/horizon-client/`; the library root is `src/client_lib.rs`. It never depends on gameplay. |
 | `horizon-items` | Blocks and items below gameplay: `blocks.rs` (block facts), `items.rs`, `item_data.rs` (components), `enchant.rs`, `cooldowns.rs`, `bundle.rs`, `item_nbt.rs`. Re-exported as `horizon_client::items`... |
 | `horizon-command` | Command parsing (Brigadier): the vanilla tree, argument types, selectors, suggestions, the tree's network form. Re-exported as `horizon_client::command` |
+| `java2horizon` | Experimental Java/Fabric compatibility runtime: embedded JVM, `fabric.mod.json`, entrypoints, Java-to-Rust registration bridge, content-mod emission ([docs/java-mods.md](docs/java-mods.md)) |
 | `horizon-client-core` | The client lib's bottom layer: `text.rs`, `lang.rs`, `snbt.rs`, `nbt_path.rs`, `component.rs`, `scoreboard.rs`, `bossbar.rs`, `gamerules.rs`, `block_entity_nbt.rs`, registry/particle/sound tables. Re-exported under the old paths (`horizon_client::text`...) |
 | `horizon-client-input` | Key bindings and key names, toggle keys, mouse options, controller settings and glyphs, the clipboard, window options (`keybinds.rs`, `gamepad.rs`, `mouse.rs`, `window.rs`...). Re-exported under the old paths |
 | `horizon-client-render` | The client's world data, rendering and screens (chunks, meshing, light, streaming, `gfx`, HUD, menus, settings): ~80 modules that horizon-client re-exports under the same paths. Nothing in it reaches gameplay |
@@ -213,3 +214,29 @@ python3 tools/parity.py dedicated_server server_entities server_player_damage
 [docs/server-levels.md](docs/server-levels.md) (levels per dimension) ·
 [docs/rust-parity.md](docs/rust-parity.md) (what is ported) · [docs/known-issues.md](docs/known-issues.md) ·
 [docs/release-flow.md](docs/release-flow.md) · [docs/README.md](docs/README.md) (index).
+
+## Shared Agent Chat
+
+Use this prompt for every participating agent:
+
+> You are collaborating with Codex, GitHub Copilot, and Big Pickle in this repository. Before starting work, read the entire conversation in `coordination/CHAT.json` using `python3 tools/shared_agent_chat.py read`. Check for new messages periodically while working and before major decisions. Post concise findings, questions, disagreements, and implementation updates to the shared chat. Reply to an existing message with its ID when appropriate. Do not edit or replace the JSON directly; always append through the helper so existing history is preserved. Be accurate about what you have verified, and communicate blockers or changed plans promptly.
+
+The shared chat is the communication history. The task database is authoritative for task assignment, ownership, status, dependencies, and completion evidence. Consult both and keep their roles separate. Append a new message or reply with:
+
+```sh
+python3 tools/shared_agent_chat.py append --sender codex --message "Your update"
+python3 tools/shared_agent_chat.py append --sender big-pickle --message "Reply" --reply-to 1
+```
+
+Use the sender name `codex`, `copilot`, or `big-pickle`. Omit `--reply-to` for a new thread; otherwise reference an existing message ID. The helper assigns sequential IDs and UTC timestamps, serializes writes with a directory lock, and atomically replaces the JSON so existing conversation history is never silently overwritten.
+
+## J2H Task Board
+
+The local SQLite task board under `coordination/tasks/` is authoritative for J2H agent task assignment and status. Before starting J2H work, check both the task board and `coordination/CHAT.json`:
+
+```sh
+python3 coordination/tasks/task.py list --agent <codex|big-pickle|copilot>
+python3 coordination/chat.py read
+```
+
+Claim an assigned open task before work with `claim ID --actor <agent>`. Record progress and blockers in task history and report significant updates through `python3 coordination/chat.py append ...`. Do not speak as another agent. Only the assigned agent or Codex may update a task; only Codex may reassign or complete it after verification. Copilot records review decisions using `review`. Completion requires a result, evidence, and completed dependencies. Full command examples and the task-state workflow are in [coordination/tasks/README.md](coordination/tasks/README.md).
